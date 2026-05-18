@@ -1,0 +1,123 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "email": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string", "enum": ["patient", "pharmacist", "admin"] },
+        "address": { "type": "string" },
+        "phone": { "type": "string" },
+        "avatarUrl": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "email", "role"]
+    },
+    "Medicine": {
+      "title": "Medicine",
+      "description": "Prescription and OTC medicine details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "number" },
+        "stock": { "type": "number" },
+        "requiresPrescription": { "type": "boolean" },
+        "imageUrl": { "type": "string" },
+        "dosage": { "type": "string" },
+        "sideEffects": { "type": "string" }
+      },
+      "required": ["name", "price", "stock"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Medicine order details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "items": { "type": "array" },
+        "status": { "type": "string", "enum": ["pending", "confirmed", "out-for-delivery", "delivered", "cancelled"] },
+        "total": { "type": "number" },
+        "prescriptionUrl": { "type": "string" },
+        "deliveryAddress": { "type": "string" },
+        "trackingInfo": { "type": "object" },
+        "scheduledDeliveryDate": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "items", "status", "total"]
+    },
+    "Chat": {
+      "title": "Chat",
+      "description": "Chat session between patient and pharmacist",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "participants": { "type": "array" },
+        "lastMessage": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["participants"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "Individual message in a chat",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "chatId": { "type": "string" },
+        "senderId": { "type": "string" },
+        "text": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["chatId", "senderId", "text", "timestamp"]
+    },
+    "Reminder": {
+      "title": "Reminder",
+      "description": "Medicine refill reminder",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "medicineId": { "type": "string" },
+        "medicineName": { "type": "string" },
+        "frequencyDays": { "type": "number" },
+        "lastRefillDate": { "type": "string", "format": "date-time" },
+        "nextRefillDate": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "medicineId", "nextRefillDate"]
+    }
+  },
+  "firestore": {
+    "users/{userId}": {
+      "schema": "User",
+      "description": "Store user profiles"
+    },
+    "medicines/{medicineId}": {
+      "schema": "Medicine",
+      "description": "Inventory of medicines"
+    },
+    "orders/{orderId}": {
+      "schema": "Order",
+      "description": "Customer orders"
+    },
+    "chats/{chatId}": {
+      "schema": "Chat",
+      "description": "Chat meta-data"
+    },
+    "chats/{chatId}/messages/{messageId}": {
+      "schema": "Message",
+      "description": "Messages within a chat"
+    },
+    "reminders/{reminderId}": {
+      "schema": "Reminder",
+      "description": "User refill reminders"
+    }
+  }
+}

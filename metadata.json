@@ -1,0 +1,8 @@
+{
+  "name": "Medicalwala",
+  "description": "A comprehensive online pharmacy platform with prescription uploads, real-time order tracking, refill reminders, and admin dashboards.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": []
+}

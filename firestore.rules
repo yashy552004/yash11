@@ -1,0 +1,117 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // --- HELPERS ---
+    
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    
+    function isEmailVerified() {
+      return request.auth.token.email_verified == true;
+    }
+    
+    function isUser(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+    
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+    
+    function hasRole(role) {
+      return isSignedIn() && 
+             exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+             getUserData().role == role;
+    }
+    
+    function isPharmacist() {
+      return hasRole('pharmacist');
+    }
+    
+    function isAdmin() {
+      return hasRole('admin');
+    }
+    
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- VALIDATION HELPERS ---
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['id', 'email', 'role']) &&
+             data.id == request.auth.uid &&
+             data.email is string &&
+             data.role in ['patient', 'pharmacist', 'admin'];
+    }
+
+    function isValidMedicine(data) {
+      return data.keys().hasAll(['name', 'price', 'stock']) &&
+             data.name is string && data.name.size() > 0 &&
+             data.price is number && data.price >= 0 &&
+             data.stock is number && data.stock >= 0;
+    }
+
+    function isValidOrder(data) {
+      return data.keys().hasAll(['userId', 'items', 'status', 'total']) &&
+             data.userId == request.auth.uid &&
+             data.status in ['pending', 'confirmed', 'out-for-delivery', 'delivered', 'cancelled'] &&
+             data.total is number && data.total >= 0;
+    }
+
+    // --- RULES ---
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    match /users/{userId} {
+      allow get: if isUser(userId) || isPharmacist() || isAdmin();
+      allow list: if isPharmacist() || isAdmin();
+      allow create: if isSignedIn() && incoming().id == request.auth.uid;
+      allow update: if (isUser(userId) && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'address', 'phone', 'avatarUrl', 'role'])) || isAdmin();
+    }
+
+    match /medicines/{medicineId} {
+      allow read: if true;
+      allow create: if (isPharmacist() || isAdmin()) && isValidMedicine(incoming());
+      allow update: if (isPharmacist() || isAdmin()) && isValidMedicine(incoming());
+      allow delete: if isAdmin();
+    }
+
+    match /orders/{orderId} {
+      allow get: if isUser(existing().userId) || isPharmacist() || isAdmin();
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || isPharmacist() || isAdmin());
+      allow create: if isSignedIn() && isValidOrder(incoming()) && incoming().userId == request.auth.uid;
+      allow update: if isSignedIn() && (
+        (isUser(existing().userId) && incoming().diff(existing()).affectedKeys().hasOnly(['status']) && incoming().status == 'cancelled') ||
+        (isPharmacist() || isAdmin())
+      );
+    }
+
+    match /chats/{chatId} {
+      allow read, write: if isSignedIn() && request.auth.uid in resource.data.participants;
+      allow create: if isSignedIn() && request.auth.uid in incoming().participants;
+      
+      match /messages/{messageId} {
+        allow read: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+        allow create: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants && incoming().senderId == request.auth.uid;
+      }
+    }
+
+    match /reminders/{reminderId} {
+      allow read, write: if isSignedIn() && resource.data.userId == request.auth.uid;
+      allow create: if isSignedIn() && incoming().userId == request.auth.uid;
+    }
+  }
+}
